@@ -1,0 +1,568 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  Int                  @id @default(autoincrement())
+  email               String               @unique @db.VarChar(255)
+  password            String               @db.VarChar(255)
+  name                String               @db.VarChar(100)
+  avatar              String?              @db.VarChar(500)
+  department          String               @db.VarChar(100)
+  departmentId        Int?
+  position            String?              @db.VarChar(100)
+  level               Int                  @default(1)
+  levelName           String               @default("新手") @db.VarChar(50)
+  points              Int                  @default(0)
+  role                Role                 @default(USER)
+  status              UserStatus           @default(ACTIVE)
+  lastLoginAt         DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  feishuId            String?              @db.VarChar(100)
+  feishuUserId        String?              @db.VarChar(100)
+  phone               String?              @db.VarChar(20)
+  qrCode              String?
+  qrCodeType          String?              @db.VarChar(20)
+  showFeishu          Boolean              @default(true)
+  showPhone           Boolean              @default(true)
+  showQrCode          Boolean              @default(true)
+  comments            Comment[]
+  demandFollowers     DemandFollower[]
+  createdDemands      Demand[]
+  discussions         Discussion[]
+  followers           Follow[]             @relation("Follower")
+  following           Follow[]             @relation("Following")
+  groupBuyMembers     GroupBuyMember[]
+  likes               Like[]
+  notifications       Notification[]
+  projectDevelopers   ProjectDeveloper[]
+  projectReplications ProjectReplication[]
+  projectLeads        Project[]            @relation("ProjectLead")
+  createdProjects     Project[]            @relation("Requester")
+  proposals           Proposal[]
+  toolReviews         ToolReview[]
+  toolUsages          ToolUsage[]
+  createdTools        Tool[]
+  certifications      UserCertification[]
+  departmentRelation  Department?          @relation(fields: [departmentId], references: [id])
+
+  @@index([email])
+  @@index([department])
+  @@index([departmentId])
+  @@index([role])
+  @@map("users")
+}
+
+model Department {
+  id                  Int                  @id @default(autoincrement())
+  name                String               @unique @db.VarChar(100)
+  description         String?
+  parentId            Int?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  demands             Demand[]
+  projectReplications ProjectReplication[]
+  projects            Project[]
+  tools               Tool[]
+  users               User[]
+
+  @@map("departments")
+}
+
+model Tool {
+  id           Int          @id @default(autoincrement())
+  name         String       @db.VarChar(100)
+  description  String
+  category     String       @db.VarChar(50)
+  type         ToolType
+  authorId     Int
+  departmentId Int
+  price        Decimal      @default(0) @db.Decimal(10, 2)
+  icon         String?      @db.VarChar(500)
+  coverImage   String?      @db.VarChar(500)
+  url          String?      @db.VarChar(500)
+  apiEndpoint  String?      @db.VarChar(500)
+  config       Json?
+  users        Int          @default(0)
+  rating       Decimal      @default(0) @db.Decimal(3, 2)
+  reviews      Int          @default(0)
+  isFeatured   Boolean      @default(false)
+  status       ToolStatus   @default(PENDING)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  likes        Like[]
+  toolReviews  ToolReview[]
+  tags         ToolTag[]
+  usages       ToolUsage[]
+  author       User         @relation(fields: [authorId], references: [id])
+  department   Department   @relation(fields: [departmentId], references: [id])
+
+  @@index([category])
+  @@index([type])
+  @@index([authorId])
+  @@index([status])
+  @@index([isFeatured])
+  @@index([rating])
+  @@map("tools")
+}
+
+model Tag {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique @db.VarChar(50)
+  category    String?      @db.VarChar(50)
+  createdAt   DateTime     @default(now())
+  projectTags ProjectTag[]
+  toolTags    ToolTag[]
+
+  @@index([name])
+  @@map("tags")
+}
+
+model ToolTag {
+  id        Int      @id @default(autoincrement())
+  toolId    Int
+  tagId     Int
+  createdAt DateTime @default(now())
+  tag       Tag      @relation(fields: [tagId], references: [id])
+  tool      Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@unique([toolId, tagId])
+  @@index([toolId])
+  @@index([tagId])
+  @@map("tool_tags")
+}
+
+model ToolReview {
+  id        Int      @id @default(autoincrement())
+  toolId    Int
+  userId    Int
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tool      Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([toolId, userId])
+  @@index([toolId])
+  @@index([userId])
+  @@map("tool_reviews")
+}
+
+model ToolUsage {
+  id     Int      @id @default(autoincrement())
+  toolId Int
+  userId Int
+  usedAt DateTime @default(now())
+  tool   Tool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  user   User     @relation(fields: [userId], references: [id])
+
+  @@index([toolId])
+  @@index([userId])
+  @@index([usedAt])
+  @@map("tool_usages")
+}
+
+model Demand {
+  id            Int              @id @default(autoincrement())
+  title         String           @db.VarChar(200)
+  description   String
+  category      String           @db.VarChar(50)
+  publisherId   Int
+  departmentId  Int
+  expectedTime  String?          @db.VarChar(50)
+  reward        Decimal          @default(0) @db.Decimal(10, 2)
+  status        DemandStatus     @default(ACTIVE)
+  views         Int              @default(0)
+  followers     Int              @default(0)
+  proposals     Int              @default(0)
+  isPaid        Boolean          @default(false)
+  isFeatured    Boolean          @default(false)
+  publishTime   DateTime         @default(now())
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  followers_rel DemandFollower[]
+  department    Department       @relation(fields: [departmentId], references: [id])
+  publisher     User             @relation(fields: [publisherId], references: [id])
+  discussions   Discussion[]
+  groupBuys     GroupBuy[]
+  likes         Like[]
+  proposals_rel Proposal[]
+
+  @@index([publisherId])
+  @@index([departmentId])
+  @@index([status])
+  @@index([category])
+  @@index([isFeatured])
+  @@index([publishTime])
+  @@map("demands")
+}
+
+model Discussion {
+  id         Int      @id @default(autoincrement())
+  demandId   Int
+  userId     Int
+  content    String
+  likes      Int      @default(0)
+  isAccepted Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  demand     Demand   @relation(fields: [demandId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([demandId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("discussions")
+}
+
+model Proposal {
+  id          Int      @id @default(autoincrement())
+  demandId    Int
+  proposerId  Int
+  title       String   @db.VarChar(200)
+  description String
+  likes       Int      @default(0)
+  isAccepted  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  demand      Demand   @relation(fields: [demandId], references: [id], onDelete: Cascade)
+  proposer    User     @relation(fields: [proposerId], references: [id])
+
+  @@index([demandId])
+  @@index([proposerId])
+  @@index([isAccepted])
+  @@map("proposals")
+}
+
+model GroupBuy {
+  id        Int              @id @default(autoincrement())
+  demandId  Int
+  current   Int              @default(1)
+  total     Int
+  price     Decimal          @db.Decimal(10, 2)
+  status    GroupBuyStatus   @default(ACTIVE)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  members   GroupBuyMember[]
+  demand    Demand           @relation(fields: [demandId], references: [id], onDelete: Cascade)
+
+  @@index([demandId])
+  @@index([status])
+  @@map("group_buys")
+}
+
+model GroupBuyMember {
+  id         Int      @id @default(autoincrement())
+  groupBuyId Int
+  userId     Int
+  joinedAt   DateTime @default(now())
+  groupBuy   GroupBuy @relation(fields: [groupBuyId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@unique([groupBuyId, userId])
+  @@index([groupBuyId])
+  @@index([userId])
+  @@map("group_buy_members")
+}
+
+model DemandFollower {
+  id        Int      @id @default(autoincrement())
+  demandId  Int
+  userId    Int
+  createdAt DateTime @default(now())
+  demand    Demand   @relation(fields: [demandId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([demandId, userId])
+  @@index([demandId])
+  @@index([userId])
+  @@map("demand_followers")
+}
+
+model Project {
+  id                      Int                  @id @default(autoincrement())
+  title                   String               @db.VarChar(200)
+  departmentId            Int
+  requesterId             Int
+  requesterDepartmentId   Int
+  projectLeadId           Int
+  projectLeadDepartmentId Int
+  category                String               @db.VarChar(50)
+  status                  ProjectStatus
+  image                   String?              @db.VarChar(500)
+  backgroundImage         String?              @db.VarChar(500)
+  images                  String?
+  videos                  String?
+  publishTime             DateTime             @default(now())
+  likes                   Int                  @default(0)
+  comments                Int                  @default(0)
+  replications            Int                  @default(0)
+  views                   Int                  @default(0)
+  isFeatured              Boolean              @default(false)
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  actualImpact            String?
+  estimatedImpact         String?
+  features                String?
+  shortDescription        String?              @db.VarChar(200)
+  solution                String?
+  reviewStatus            ReviewStatus         @default(PENDING)
+  requesterName           String?              @db.VarChar(100)
+  background              String?
+  empoweredDepartments    String?              @db.VarChar(500) @map("empowered_departments")
+  launchDate              DateTime?            @db.Timestamp(6) @map("launch_date")
+  comments_rel            Comment[]
+  likes_rel               Like[]
+  developers              ProjectDeveloper[]
+  impact                  ProjectImpact?
+  replications_rel        ProjectReplication[]
+  tags                    ProjectTag[]
+  department              Department           @relation(fields: [departmentId], references: [id])
+  projectLead             User                 @relation("ProjectLead", fields: [projectLeadId], references: [id])
+  requester               User                 @relation("Requester", fields: [requesterId], references: [id])
+
+  @@index([departmentId])
+  @@index([category])
+  @@index([status])
+  @@index([reviewStatus])
+  @@index([isFeatured])
+  @@index([publishTime])
+  @@map("projects")
+}
+
+model ProjectDeveloper {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  userId    Int
+  role      String?  @db.VarChar(50)
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+  @@map("project_developers")
+}
+
+model ProjectTag {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  tagId     Int
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id])
+
+  @@unique([projectId, tagId])
+  @@index([projectId])
+  @@index([tagId])
+  @@map("project_tags")
+}
+
+model ProjectImpact {
+  id           Int      @id @default(autoincrement())
+  projectId    Int      @unique
+  efficiency   String?
+  costSaving   String?
+  replication  String?
+  satisfaction String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_impact")
+}
+
+model ProjectReplication {
+  id                 Int               @id @default(autoincrement())
+  projectId          Int
+  replicatorId       Int
+  departmentId       Int
+  status             ReplicationStatus @default(APPLIED)
+  appliedAt          DateTime          @default(now())
+  deployedAt         DateTime?
+  additionalNeeds    String?
+  aiAnalysis         String?
+  aiAnalysisAt       DateTime?
+  applicantName      String            @db.VarChar(100)
+  budgetRange        String?           @db.VarChar(100)
+  businessScenario   String
+  contactPhone       String?           @db.VarChar(20)
+  department         String            @db.VarChar(100)
+  email              String            @db.VarChar(255)
+  expectedGoals      String?
+  targetLaunchDate   String?           @db.VarChar(50)
+  teamSize           String?           @db.VarChar(50)
+  urgency            String            @default("normal") @db.VarChar(20)
+  departmentRelation Department        @relation(fields: [departmentId], references: [id])
+  project            Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  replicator         User              @relation(fields: [replicatorId], references: [id])
+
+  @@index([projectId])
+  @@index([replicatorId])
+  @@index([departmentId])
+  @@index([status])
+  @@index([appliedAt])
+  @@map("project_replications")
+}
+
+model Comment {
+  id        Int       @id @default(autoincrement())
+  projectId Int?
+  userId    Int
+  content   String
+  parentId  Int?
+  likes     Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([parentId])
+  @@index([createdAt])
+  @@map("comments")
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  projectId Int?
+  toolId    Int?
+  demandId  Int?
+  userId    Int
+  createdAt DateTime @default(now())
+  demand    Demand?  @relation(fields: [demandId], references: [id], onDelete: Cascade)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tool      Tool?    @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([projectId, userId])
+  @@unique([toolId, userId])
+  @@unique([demandId, userId])
+  @@index([projectId])
+  @@index([toolId])
+  @@index([demandId])
+  @@index([userId])
+  @@map("likes")
+}
+
+model Follow {
+  id          Int      @id @default(autoincrement())
+  followerId  Int
+  followingId Int
+  createdAt   DateTime @default(now())
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("follows")
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  type      NotificationType
+  title     String           @db.VarChar(200)
+  content   String
+  link      String?          @db.VarChar(500)
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model UserCertification {
+  id       Int      @id @default(autoincrement())
+  userId   Int
+  name     String   @db.VarChar(100)
+  level    String   @db.VarChar(20)
+  issuer   String   @db.VarChar(100)
+  icon     String?  @db.VarChar(500)
+  issuedAt DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_certifications")
+}
+
+enum Role {
+  USER
+  DEPT_ADMIN
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BANNED
+}
+
+enum ToolType {
+  AGENT
+  API
+  EXTERNAL
+}
+
+enum ToolStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DemandStatus {
+  ACTIVE
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum GroupBuyStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ProjectStatus {
+  REQUIREMENT_CONFIRMED
+  SCHEDULED
+  IN_PRODUCTION
+  DELIVERED_NOT_DEPLOYED
+  DELIVERED_DEPLOYED
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ReplicationStatus {
+  APPLIED
+  APPROVED
+  DEPLOYED
+}
+
+enum NotificationType {
+  WELCOME
+  PROJECT_APPROVED
+  DEMAND_RESPONSE
+  COMMENT_REPLY
+  LIKE
+  FOLLOW
+}
