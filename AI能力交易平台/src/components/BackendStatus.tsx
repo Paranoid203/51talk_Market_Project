@@ -59,15 +59,8 @@ export function BackendStatus() {
   }
 
   if (status === 'connected') {
-    return (
-      <Alert className="mb-4 border-green-500 bg-green-50">
-        <CheckCircle2 className="h-4 w-4 text-green-600" />
-        <AlertTitle className="text-green-800">后端连接正常</AlertTitle>
-        <AlertDescription className="text-green-700">
-          后端服务连接正常
-        </AlertDescription>
-      </Alert>
-    );
+    // 连接正常时不显示任何内容，保持页面简洁
+    return null;
   }
 
   return (
