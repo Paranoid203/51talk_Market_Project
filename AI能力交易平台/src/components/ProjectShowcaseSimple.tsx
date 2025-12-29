@@ -13,7 +13,76 @@ interface ProjectVisualConfig {
   pattern: 'circles' | 'grid' | 'waves' | 'dots' | 'hexagon' | 'diamond';
   accentColor: string;
   glowColor: string;
+  imageKeywords: string; // Unsplash 搜索关键词
 }
+
+// 根据项目标题获取相关主题图片 - 精选 Picsum 图片ID与主题匹配
+const getProjectImageUrl = (title: string, category?: string): string => {
+  // 为不同主题精选的图片ID组
+  const themeImages: Record<string, number[]> = {
+    // 视频/社媒/直播 - 创意、媒体相关
+    video: [180, 119, 160, 201, 250, 256, 286, 306],
+    // AI/科技/生成 - 科技感、未来感
+    tech: [0, 1, 60, 366, 367, 368, 373, 380, 403, 411],
+    // 运营/客服/服务 - 办公、团队
+    operation: [20, 64, 177, 238, 257, 260, 290, 335],
+    // 数据/分析/表盘 - 图表、数据可视化
+    data: [3, 48, 52, 183, 185, 292, 295, 308],
+    // 市场/品牌/营销 - 商业、营销
+    marketing: [26, 36, 96, 126, 196, 225, 264, 318],
+    // 工作流/升舱/推送 - 流程、自动化
+    workflow: [4, 7, 49, 68, 180, 193, 239, 247],
+    // 教育/学科/新生 - 学习、教育
+    education: [24, 42, 180, 301, 356, 367, 395, 428],
+    // 全球/海外/国际 - 世界、国际化
+    global: [10, 28, 29, 39, 41, 100, 142, 164, 169],
+    // 默认 - 通用商业图片
+    default: [0, 1, 20, 26, 48, 60, 180, 201],
+  };
+  
+  // 关键词到主题的映射
+  const keywordToTheme: Record<string, string> = {
+    视频: 'video', 社媒: 'video', 直播: 'video', 
+    AI: 'tech', 科技: 'tech', 生成: 'tech', 智能: 'tech',
+    运营: 'operation', CC: 'operation', 客服: 'operation', 服务: 'operation', 亲密: 'operation',
+    数据: 'data', 分析: 'data', 表盘: 'data', 统计: 'data',
+    市场: 'marketing', 品牌: 'marketing', 营销: 'marketing', 投放: 'marketing',
+    工作流: 'workflow', 升舱: 'workflow', 推送: 'workflow', lark: 'workflow', 名片: 'workflow',
+    学科: 'education', 教育: 'education', 新生: 'education', 教室: 'education', 培训: 'education',
+    全球: 'global', 海外: 'global', 国际: 'global', 中东: 'global', 菲律宾: 'global',
+    素材: 'marketing', 物料: 'marketing',
+    质检: 'data',
+    SS: 'data', S9: 'tech', LP: 'marketing',
+  };
+  
+  // 查找匹配的主题
+  let theme = 'default';
+  for (const [keyword, t] of Object.entries(keywordToTheme)) {
+    if (title.includes(keyword)) {
+      theme = t;
+      break;
+    }
+  }
+  
+  // 根据分类补充判断
+  if (theme === 'default' && category) {
+    if (category.includes('中东') || category.includes('菲律宾') || category.includes('全球')) {
+      theme = 'global';
+    } else if (category.includes('北京')) {
+      theme = 'operation';
+    }
+  }
+  
+  // 使用标题hash在该主题的图片组中选择一张
+  let hash = 0;
+  for (let i = 0; i < title.length; i++) {
+    hash = ((hash << 5) - hash) + title.charCodeAt(i);
+  }
+  const images = themeImages[theme];
+  const imageId = images[Math.abs(hash) % images.length];
+  
+  return `https://picsum.photos/id/${imageId}/800/450`;
+};
 
 const getProjectVisual = (title: string, category?: string): ProjectVisualConfig => {
   const keywords: Record<string, ProjectVisualConfig> = {
@@ -785,27 +854,15 @@ export function ProjectShowcase({ searchQuery, onProjectSelect }: ProjectShowcas
                       onClick={() => onProjectSelect?.(project.id, project)}
                   >
                     <div className="relative h-64 rounded-2xl overflow-hidden shadow-2xl transition-all duration-500 group-hover:shadow-purple-500/20 group-hover:-translate-y-2">
-                        {/* 精美渐变背景 */}
-                        <div className={`absolute inset-0 bg-gradient-to-br ${visual?.gradient || 'from-slate-600 to-zinc-700'}`}>
-                          {/* 图案层 */}
-                          {patternBase64 && (
-                            <div 
-                              className="absolute inset-0 opacity-30"
-                              style={{ backgroundImage: `url("data:image/svg+xml;base64,${patternBase64}")`, backgroundSize: '50px 50px' }}
-                            ></div>
-                          )}
-                          {/* 光晕效果 */}
-                          <div 
-                            className="absolute top-1/4 -right-8 w-24 h-24 rounded-full blur-2xl opacity-50"
-                            style={{ backgroundColor: visual?.glowColor || 'rgba(255,255,255,0.2)' }}
-                          ></div>
-                          <div 
-                            className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full blur-3xl opacity-40"
-                            style={{ backgroundColor: visual?.glowColor || 'rgba(255,255,255,0.2)' }}
-                          ></div>
-                          {/* 底部渐变 */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent"></div>
-                      </div>
+                        {/* 真实图片背景 */}
+                        <img 
+                          src={getProjectImageUrl(project.title, undefined)}
+                          alt={project.title}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                        {/* 渐变遮罩确保文字可读 */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20"></div>
 
                       {/* 内容 */}
                       <div className="absolute inset-0 p-3 flex flex-col justify-between">
@@ -1025,73 +1082,29 @@ export function ProjectShowcase({ searchQuery, onProjectSelect }: ProjectShowcas
             >
               {/* 内层：内容卡片 */}
               <div className="space-y-3">
-                {/* 图片卡片 - 支持真实图片或精美的动态封面 */}
-                <div className="relative aspect-video rounded-2xl overflow-hidden shadow-inner">
-                  {project.coverImage || project.image ? (
+                {/* 图片卡片 - 使用 Unsplash 真实图片 */}
+                <div className="relative aspect-video rounded-2xl overflow-hidden shadow-inner bg-slate-100">
                   <img 
-                      src={project.coverImage || project.image} 
+                    src={project.coverImage || project.image || getProjectImageUrl(project.title, project.category)} 
                     alt={project.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                  ) : (
-                    // 精美的动态封面设计
-                    (() => {
-                      const visual = getProjectVisual(project.title, project.category);
-                      const IconComponent = visual.icon;
-                      const patternSvg = getPatternSvg(visual.pattern, visual.accentColor);
-                      const patternBase64 = btoa(patternSvg);
-                      
-                      return (
-                        <div className={`w-full h-full bg-gradient-to-br ${visual.gradient} relative overflow-hidden`}>
-                          {/* 主渐变背景 */}
-                          <div className="absolute inset-0 bg-gradient-to-tr from-black/20 via-transparent to-white/10"></div>
-                          
-                          {/* 装饰图案层 */}
-                          <div 
-                            className="absolute inset-0 opacity-40"
-                            style={{ backgroundImage: `url("data:image/svg+xml;base64,${patternBase64}")`, backgroundSize: '60px 60px' }}
-                          ></div>
-                          
-                          {/* 光晕效果 */}
-                          <div 
-                            className="absolute top-1/4 -right-10 w-32 h-32 rounded-full blur-3xl opacity-60 group-hover:opacity-80 transition-opacity duration-500"
-                            style={{ backgroundColor: visual.glowColor }}
-                          ></div>
-                          <div 
-                            className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full blur-3xl opacity-40"
-                            style={{ backgroundColor: visual.glowColor }}
-                          ></div>
-                          
-                          {/* 装饰线条 */}
-                          <div className="absolute top-4 left-4 w-12 h-[1px] bg-white/30"></div>
-                          <div className="absolute top-4 left-4 w-[1px] h-12 bg-white/30"></div>
-                          <div className="absolute bottom-4 right-4 w-8 h-[1px] bg-white/20"></div>
-                          <div className="absolute bottom-4 right-4 w-[1px] h-8 bg-white/20"></div>
-                          
-                          {/* 主图标 - 带玻璃态效果 */}
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="relative group-hover:scale-110 transition-transform duration-500">
-                              {/* 图标背景光晕 */}
-                              <div 
-                                className="absolute inset-0 rounded-full blur-2xl scale-150 opacity-50"
-                                style={{ backgroundColor: visual.glowColor }}
-                              ></div>
-                              {/* 玻璃态圆形背景 */}
-                              <div className="relative w-20 h-20 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center shadow-2xl">
-                                <IconComponent className="w-10 h-10 text-white drop-shadow-lg" strokeWidth={1.5} />
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* 底部渐变遮罩 */}
-                          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/30 to-transparent"></div>
-                          
-                          {/* 噪点纹理增加质感 */}
-                          <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")' }}></div>
-                        </div>
-                      );
-                    })()
-                  )}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    loading="lazy"
+                    onError={(e) => {
+                      // 图片加载失败时显示渐变占位
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent && !parent.querySelector('.fallback-cover')) {
+                        const visual = getProjectVisual(project.title, project.category);
+                        const fallback = document.createElement('div');
+                        fallback.className = `fallback-cover absolute inset-0 bg-gradient-to-br ${visual.gradient} flex items-center justify-center`;
+                        fallback.innerHTML = `<div class="w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center"><svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>`;
+                        parent.appendChild(fallback);
+                      }
+                    }}
+                  />
+                  {/* 加载中的骨架屏 */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 animate-pulse -z-10"></div>
                 </div>
 
                 {/* 信息卡片 */}
