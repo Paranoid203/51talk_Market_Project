@@ -1,8 +1,18 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, Plus, FileEdit, ArrowLeft, TrendingUp, Users, Briefcase, Zap, Calendar, DollarSign, Award, ClipboardCheck, User } from 'lucide-react';
+import { BarChart3, Plus, FileEdit, ArrowLeft, TrendingUp, Users, Briefcase, Zap, Calendar, DollarSign, Award, ClipboardCheck, User, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 import { ProjectEditor, ProjectFormData } from './ProjectEditor';
 import { ProjectReview } from './ProjectReview';
 import { ReplicationManagement } from './ReplicationManagement';
@@ -49,6 +59,11 @@ export function AdminDashboard({ onBack }: AdminDashboardProps) {
   // 项目列表数据（从API获取）
   const [projects, setProjects] = useState<any[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  
+  // 删除确认对话框状态
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // 获取所有项目 - 页面加载时立即获取
   useEffect(() => {
@@ -351,6 +366,27 @@ export function AdminDashboard({ onBack }: AdminDashboardProps) {
     } catch (error: any) {
       console.error('项目创建失败:', error);
       toast.error(error.message || '项目创建失败，请重试');
+    }
+  };
+
+  // 处理删除项目
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await projectsApi.delete(Number(projectToDelete.id));
+      toast.success(`项目「${projectToDelete.name}」已删除`);
+      
+      // 从列表中移除
+      setProjects(prev => prev.filter(p => p.id !== projectToDelete.id));
+      setDeleteDialogOpen(false);
+      setProjectToDelete(null);
+    } catch (error: any) {
+      console.error('删除项目失败:', error);
+      toast.error(error.message || '删除失败，请重试');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -740,22 +776,60 @@ export function AdminDashboard({ onBack }: AdminDashboardProps) {
                         </div>
 
                         {/* 操作按钮 */}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setEditingProjectId(project.id);
-                            setIsEditingProject(true);
-                          }}
-                          className="gap-2 border-[#2487FF]/30 hover:bg-[#2487FF]/10 hover:border-[#2487FF] text-[#2487FF] transition-all hover:scale-105"
-                        >
-                          <FileEdit className="size-4" />
-                          编辑
-                        </Button>
+                        <div className="flex flex-col gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingProjectId(project.id);
+                              setIsEditingProject(true);
+                            }}
+                            className="gap-2 border-[#2487FF]/30 hover:bg-[#2487FF]/10 hover:border-[#2487FF] text-[#2487FF] transition-all hover:scale-105"
+                          >
+                            <FileEdit className="size-4" />
+                            编辑
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setProjectToDelete({ id: project.id, name: project.name });
+                              setDeleteDialogOpen(true);
+                            }}
+                            className="gap-2 border-red-300 hover:bg-red-50 hover:border-red-500 text-red-500 transition-all hover:scale-105"
+                          >
+                            <Trash2 className="size-4" />
+                            删除
+                          </Button>
+                        </div>
                       </div>
                     </Card>
                   ))}
                 </div>
+
+                {/* 删除确认对话框 */}
+                <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>确认删除项目</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        您确定要删除项目「<span className="font-semibold text-red-600">{projectToDelete?.name}</span>」吗？
+                        <br />
+                        <span className="text-red-500 font-medium">此操作不可撤销，项目数据将被永久删除。</span>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={isDeleting}>取消</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteProject}
+                        disabled={isDeleting}
+                        className="bg-red-500 hover:bg-red-600 text-white"
+                      >
+                        {isDeleting ? '删除中...' : '确认删除'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             ) : activeTab === 'replications' ? (
               // 部署申请管理
